@@ -28,7 +28,7 @@ class InspectCommand extends Command
      */
     public function handle(): int
     {
-        $this->info('Pop Framework - System Information');
+        $this->info('Beam Framework - System Information');
         $this->newLine();
 
         // PHP Information

@@ -1,0 +1,102 @@
+# Dependencies
+/vendor/
+composer.lock
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+*.code-workspace
+.history/
+
+# Operating system
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.backup
+*.env
+
+# Logs
+*.log
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Cache
+/storage/cache/*
+!/storage/cache/.gitkeep
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep
+.php-cs-fixer.cache
+.phpunit.result.cache
+
+# Testing
+/coverage/
+.phpunit.cache/
+phpunit.xml
+
+# Build artifacts
+/build/
+/dist/
+*.phar
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Compiled files
+*.compiled.php
+
+# Node.js (if using for frontend assets)
+/node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+
+# Frontend build output
+/public/build/
+/public/hot
+/public/mix-manifest.json
+
+# Documentation build
+/docs/_build/
+
+# Local development
+.vagrant/
+Homestead.yaml
+Homestead.json
+.docker/
+docker-compose.override.yml
+
+# Security - never commit these
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+/secrets/
+credentials.json
+service-account.json

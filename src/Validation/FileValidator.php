@@ -7,7 +7,7 @@ namespace Framework\Validation;
  *
  * Singleton service for validating uploaded files including MIME types,
  * file sizes, extensions, and image dimensions.
- * Follows Pop Framework's singleton pattern.
+ * Follows Beam Framework's singleton pattern.
  */
 class FileValidator
 {
