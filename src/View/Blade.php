@@ -16,14 +16,35 @@ class Blade {
     private $discoveredComponents = [];
 
     public function __construct() {
-        // Base view paths
-        $this->viewPaths = [
-            ROOT_PATH . '/Infrastructure/Http/View/',
-            ROOT_PATH . '/Infrastructure/Http/View/Components/'
+        $rootPath = defined('ROOT_PATH') ? ROOT_PATH : getcwd();
+
+        // Base view paths - check multiple common locations
+        $possibleViewPaths = [
+            $rootPath . '/resources/views/',
+            $rootPath . '/views/',
+            $rootPath . '/Infrastructure/Http/View/',
         ];
 
+        $possibleComponentPaths = [
+            $rootPath . '/resources/views/components/',
+            $rootPath . '/views/components/',
+            $rootPath . '/Infrastructure/Http/View/Components/',
+        ];
+
+        // Add existing paths only
+        foreach ($possibleViewPaths as $path) {
+            if (is_dir($path)) {
+                $this->viewPaths[] = $path;
+            }
+        }
+
+        // Fallback to first path if none exist
+        if (empty($this->viewPaths)) {
+            $this->viewPaths[] = $rootPath . '/resources/views/';
+        }
+
         // Auto-discover all component subdirectories
-        $this->autoDiscoverComponentPaths();
+        $this->autoDiscoverComponentPaths($possibleComponentPaths);
 
         // Auto-discover and register component types
         $this->autoDiscoverComponents();
@@ -31,20 +52,32 @@ class Blade {
 
     /**
      * AUTO-DISCOVERY: Scan Components folder and discover all subdirectories
+     *
+     * @param array $possiblePaths Possible component paths to check
      */
-    private function autoDiscoverComponentPaths() {
-        $componentsBaseDir = ROOT_PATH . '/Infrastructure/Http/View/Components/';
+    private function autoDiscoverComponentPaths(array $possiblePaths = []) {
+        $rootPath = defined('ROOT_PATH') ? ROOT_PATH : getcwd();
 
-        if (!is_dir($componentsBaseDir)) {
-            error_log("Blade: Components directory not found: {$componentsBaseDir}");
-            return;
+        // Default paths if none provided
+        if (empty($possiblePaths)) {
+            $possiblePaths = [
+                $rootPath . '/resources/views/components/',
+                $rootPath . '/views/components/',
+                $rootPath . '/Infrastructure/Http/View/Components/',
+            ];
         }
 
-        // Add base components directory first
-        $this->componentPaths[] = $componentsBaseDir;
+        foreach ($possiblePaths as $componentsBaseDir) {
+            if (!is_dir($componentsBaseDir)) {
+                continue; // Silently skip non-existent directories
+            }
 
-        // Recursively scan for subdirectories
-        $this->scanComponentDirectories($componentsBaseDir);
+            // Add base components directory
+            $this->componentPaths[] = $componentsBaseDir;
+
+            // Recursively scan for subdirectories
+            $this->scanComponentDirectories($componentsBaseDir);
+        }
     }
 
     /**
@@ -78,32 +111,46 @@ class Blade {
      * AUTO-DISCOVERY: Scan components folder and register component types
      */
     private function autoDiscoverComponents() {
-        $componentsDir = ROOT_PATH . '/Infrastructure/Http/View/Components/';
-
-        if (!is_dir($componentsDir)) {
+        // Skip if no component paths discovered
+        if (empty($this->componentPaths)) {
             return;
         }
 
-        // Scan for subdirectories in components/
-        $items = scandir($componentsDir);
-
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
+        // Scan each component path for subdirectories
+        foreach ($this->componentPaths as $componentsDir) {
+            if (!is_dir($componentsDir)) {
                 continue;
             }
 
-            $fullPath = $componentsDir . $item;
+            $items = @scandir($componentsDir);
+            if ($items === false) {
+                continue;
+            }
 
-            // If it's a directory, register it as a component type
-            if (is_dir($fullPath)) {
-                $componentType = strtolower($item);
-                $this->discoveredComponents[$componentType] = new ComponentRenderer($item);
+            foreach ($items as $item) {
+                if ($item === '.' || $item === '..') {
+                    continue;
+                }
 
-                // Merge with components array
-                $this->components[$componentType] = $this->discoveredComponents[$componentType];
+                $fullPath = $componentsDir . $item;
 
-                // Create dynamic global function for this component type
-                $this->createComponentFunction($componentType);
+                // If it's a directory, register it as a component type
+                if (is_dir($fullPath)) {
+                    $componentType = strtolower($item);
+
+                    // Skip if already registered
+                    if (isset($this->discoveredComponents[$componentType])) {
+                        continue;
+                    }
+
+                    $this->discoveredComponents[$componentType] = new ComponentRenderer($item);
+
+                    // Merge with components array
+                    $this->components[$componentType] = $this->discoveredComponents[$componentType];
+
+                    // Create dynamic global function for this component type
+                    $this->createComponentFunction($componentType);
+                }
             }
         }
     }
