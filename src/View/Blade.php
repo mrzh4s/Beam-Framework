@@ -143,7 +143,7 @@ class Blade {
 
             // Create ViewEngine alias for backward compatibility
             if (!class_exists('ViewEngine', false)) {
-                class_alias('Framework\View\Blade', 'ViewEngine');
+                class_alias('Vireo\Framework\View\Blade', 'ViewEngine');
             }
         }
         return self::$instance;

@@ -49,7 +49,7 @@ redirect('dashboard');                // Redirect to named route
 
 namespace App\Features\Users;
 
-use Framework\Http\Controller;
+use Vireo\Framework\Http\Controller;
 
 class ShowUser extends Controller
 {
@@ -157,7 +157,7 @@ php vireo migrate:fresh
 ```php
 <?php
 
-use Framework\Database\Migrations\Migration;
+use Vireo\Framework\Database\Migrations\Migration;
 
 return new class extends Migration
 {
