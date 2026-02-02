@@ -387,14 +387,18 @@ class Inertia {
      * @return array
      */
     private static function getSessionProps() {
-        if (!isset($_SESSION)) {
+        // Ensure session is started
+        if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
-        $props = [];
+        $props = [
+            'errors' => [],
+            'flash' => []
+        ];
 
         // Validation errors
-        if (isset($_SESSION['errors'])) {
+        if (isset($_SESSION['errors']) && is_array($_SESSION['errors'])) {
             $props['errors'] = $_SESSION['errors'];
         }
 
@@ -482,11 +486,21 @@ class Inertia {
      * @return void
      */
     public static function flashErrors($errors) {
-        if (!isset($_SESSION)) {
+        // Ensure session is active and writable
+        if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
-        $_SESSION['errors'] = $errors;
+        // If session was closed, restart it
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['errors'] = $errors;
+
+            // Immediately write and close to ensure data is persisted
+            session_write_close();
+
+            // Restart session for any subsequent operations
+            session_start();
+        }
     }
 
     /**
