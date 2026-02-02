@@ -772,6 +772,15 @@ class Router
             // Try each possible namespace
             foreach ($possibleNamespaces as $namespace) {
                 $fullClassName = $namespace . $className;
+
+                // Try to load the controller file if not already loaded
+                if (!class_exists($fullClassName, false)) {
+                    $filePath = ROOT_PATH . '/' . str_replace('\\', '/', $namespace) . $className . '.php';
+                    if (file_exists($filePath)) {
+                        require_once $filePath;
+                    }
+                }
+
                 if (class_exists($fullClassName)) {
                     return $this->executeClass($fullClassName, $method, $params);
                 }
