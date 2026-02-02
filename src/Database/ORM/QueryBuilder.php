@@ -436,7 +436,7 @@ class QueryBuilder
     /**
      * Execute the query and get the first result
      */
-    public function first(): ?object
+    public function first(): mixed
     {
         $results = $this->limit(1)->get();
         return $results->first();
