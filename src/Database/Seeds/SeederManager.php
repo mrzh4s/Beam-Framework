@@ -134,7 +134,7 @@ class SeederManager
     }
 
     /**
-     * Get all seeder classes
+     * Get all seeder classes with full namespace
      */
     private function getAllSeeders(): array
     {
@@ -147,22 +147,49 @@ class SeederManager
 
         foreach ($files as $file) {
             if (preg_match('/^(.+)Seeder\.php$/', $file, $matches)) {
-                $seeders[] = $matches[1] . 'Seeder';
+                $className = $matches[1] . 'Seeder';
+                $filePath = $this->seedersPath . '/' . $file;
+
+                // Read namespace from file
+                $namespace = $this->getNamespaceFromFile($filePath);
+                $fullClassName = $namespace ? $namespace . '\\' . $className : $className;
+
+                $seeders[] = $fullClassName;
             }
         }
 
         // Sort alphabetically, but DatabaseSeeder should run last
         usort($seeders, function ($a, $b) {
-            if ($a === 'DatabaseSeeder') {
+            $aBase = basename(str_replace('\\', '/', $a));
+            $bBase = basename(str_replace('\\', '/', $b));
+
+            if ($aBase === 'DatabaseSeeder') {
                 return 1;
             }
-            if ($b === 'DatabaseSeeder') {
+            if ($bBase === 'DatabaseSeeder') {
                 return -1;
             }
-            return strcmp($a, $b);
+            return strcmp($aBase, $bBase);
         });
 
         return $seeders;
+    }
+
+    /**
+     * Get namespace from PHP file
+     */
+    private function getNamespaceFromFile(string $filePath): ?string
+    {
+        if (!file_exists($filePath)) {
+            return null;
+        }
+
+        $contents = file_get_contents($filePath);
+        if ($contents !== false && preg_match('/^\s*namespace\s+([^;]+);/m', $contents, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return null;
     }
 
     /**
