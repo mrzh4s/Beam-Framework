@@ -1219,15 +1219,8 @@ class Router
      */
     private function handleRouterError($e)
     {
-        if (app('debug') === true) {
-            echo "<h1>Router Error</h1>";
-            echo "<p><strong>Message:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
-            echo "<p><strong>File:</strong> " . $e->getFile() . ":" . $e->getLine() . "</p>";
-            echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-        } else {
-            error_log("Router Error: " . $e->getMessage());
-            $this->handle500();
-        }
+        error_log("Router Error: " . $e->getMessage());
+        $this->handle500($e, "Router Error: " . $e->getMessage());
     }
 
     /**
@@ -1235,49 +1228,87 @@ class Router
      */
     private function handleViewError($e, $viewFile, $params = [])
     {
-        if (app('debug') === true) {
-            echo "<div style='background:#f8d7da;border:1px solid #f5c6cb;color:#721c24;padding:15px;margin:10px;border-radius:4px;'>";
-            echo "<h3>Router View Error</h3>";
-            echo "<p><strong>View:</strong> " . htmlspecialchars($viewFile) . "</p>";
-            echo "<p><strong>Message:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
-            echo "<p><strong>File:</strong> " . $e->getFile() . ":" . $e->getLine() . "</p>";
-
-            if (!empty($params)) {
-                echo "<p><strong>Parameters:</strong></p>";
-                echo "<pre style='background:#fff;padding:10px;border-radius:3px;'>" . print_r($params, true) . "</pre>";
-            }
-
-            echo "<p><strong>Stack Trace:</strong></p>";
-            echo "<pre style='background:#fff;padding:10px;border-radius:3px;font-size:12px;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-            echo "</div>";
-        } else {
-            error_log("Router View Error ({$viewFile}): " . $e->getMessage());
-            $this->handle404();
-        }
+        error_log("Router View Error ({$viewFile}): " . $e->getMessage());
+        $this->handle404($e, "View not found: {$viewFile}");
     }
 
     /**
      * Handle 404 errors
+     *
+     * @param \Exception|null $exception Optional exception for debug details
+     * @param string|null $message Optional custom message
      */
-    private function handle404()
+    private function handle404($exception = null, $message = null)
     {
         http_response_code(404);
 
+        $isDebug = app('debug') === true;
+        $requestedUri = $_SERVER['REQUEST_URI'] ?? 'Unknown';
+        $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'Unknown';
+
         if ($this->_isApiRequest()) {
             header('Content-Type: application/json');
-            echo json_encode([
+            $response = [
                 'status' => 'Client Error',
-                'message' => 'Endpoint not found',
+                'message' => $message ?: 'Endpoint not found',
                 'timestamp' => date('Y-m-d H:i:s'),
                 'server_time' => time()
-            ], JSON_PRETTY_PRINT);
+            ];
+
+            if ($isDebug) {
+                $response['debug'] = [
+                    'uri' => $requestedUri,
+                    'method' => $requestMethod,
+                    'routes' => array_keys($this->routes),
+                ];
+                if ($exception) {
+                    $response['debug']['exception'] = [
+                        'message' => $exception->getMessage(),
+                        'file' => $exception->getFile(),
+                        'line' => $exception->getLine(),
+                    ];
+                }
+            }
+
+            echo json_encode($response, JSON_PRETTY_PRINT);
             return;
         }
 
         $error404Path = ROOT_PATH . $this->baseTemplatesPath . 'error/404.php';
-        if (file_exists($error404Path)) {
+        if (file_exists($error404Path) && !$isDebug) {
             include $error404Path;
             return;
+        }
+
+        // Debug mode or no custom error page
+        $debugInfo = '';
+        if ($isDebug) {
+            $debugInfo = "
+                <div style='background:#fff3cd;border:1px solid #ffc107;padding:20px;margin:20px auto;max-width:900px;border-radius:8px;text-align:left;'>
+                    <h3 style='margin-top:0;color:#856404;'>🔍 Debug Information</h3>
+                    <p><strong>Requested URI:</strong> <code>{$requestedUri}</code></p>
+                    <p><strong>Request Method:</strong> <code>{$requestMethod}</code></p>
+                    <p><strong>Custom Message:</strong> " . ($message ? htmlspecialchars($message) : '<em>None</em>') . "</p>";
+
+            if ($exception) {
+                $debugInfo .= "
+                    <hr style='border:1px solid #ffc107;margin:15px 0;'>
+                    <h4 style='color:#856404;'>Exception Details:</h4>
+                    <p><strong>Message:</strong> " . htmlspecialchars($exception->getMessage()) . "</p>
+                    <p><strong>File:</strong> <code>" . $exception->getFile() . ":" . $exception->getLine() . "</code></p>
+                    <details>
+                        <summary style='cursor:pointer;color:#856404;font-weight:bold;'>Stack Trace</summary>
+                        <pre style='background:#f8f9fa;padding:10px;border-radius:4px;overflow:auto;font-size:12px;'>" . htmlspecialchars($exception->getTraceAsString()) . "</pre>
+                    </details>";
+            }
+
+            $debugInfo .= "
+                    <hr style='border:1px solid #ffc107;margin:15px 0;'>
+                    <details>
+                        <summary style='cursor:pointer;color:#856404;font-weight:bold;'>Registered Routes</summary>
+                        <pre style='background:#f8f9fa;padding:10px;border-radius:4px;overflow:auto;font-size:12px;'>" . print_r(array_keys($this->routes), true) . "</pre>
+                    </details>
+                </div>";
         }
 
         echo "<!DOCTYPE html>
@@ -1287,42 +1318,118 @@ class Router
                 <meta charset='utf-8'>
                 <meta name='viewport' content='width=device-width, initial-scale=1'>
                 <style>
-                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background:#f8f9fa; margin:0; padding:20px; }
+                    .container { max-width:800px; margin:0 auto; }
                     h1 { color: #dc3545; }
-                    p { color: #6c757d; }
+                    p { color: #6c757d; line-height:1.6; }
                     a { color: #007bff; text-decoration: none; }
+                    a:hover { text-decoration: underline; }
+                    code { background:#f8f9fa; padding:2px 6px; border-radius:3px; font-family:monospace; }
                 </style>
             </head>
             <body>
-                <h1>404 - Page Not Found</h1>
-                <p>The requested page could not be found.</p>
-                <a href='/'>Return to Home</a>
+                <div class='container'>
+                    <h1>404 - Page Not Found</h1>
+                    <p>The requested page could not be found.</p>
+                    {$debugInfo}
+                    <p><a href='/'>← Return to Home</a></p>
+                </div>
             </body>
             </html>";
     }
 
     /**
      * Handle 500 errors
+     *
+     * @param \Exception|null $exception Optional exception for debug details
+     * @param string|null $message Optional custom message
      */
-    private function handle500()
+    private function handle500($exception = null, $message = null)
     {
         http_response_code(500);
 
+        $isDebug = app('debug') === true;
+        $requestedUri = $_SERVER['REQUEST_URI'] ?? 'Unknown';
+        $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'Unknown';
+
         if ($this->_isApiRequest()) {
             header('Content-Type: application/json');
-            echo json_encode([
+            $response = [
                 'status' => 'Server Error',
-                'message' => 'Internal server error',
+                'message' => $message ?: 'Internal server error',
                 'timestamp' => date('Y-m-d H:i:s'),
                 'server_time' => time()
-            ], JSON_PRETTY_PRINT);
+            ];
+
+            if ($isDebug && $exception) {
+                $response['debug'] = [
+                    'uri' => $requestedUri,
+                    'method' => $requestMethod,
+                    'exception' => [
+                        'message' => $exception->getMessage(),
+                        'file' => $exception->getFile(),
+                        'line' => $exception->getLine(),
+                        'trace' => explode("\n", $exception->getTraceAsString()),
+                    ],
+                ];
+            }
+
+            echo json_encode($response, JSON_PRETTY_PRINT);
             return;
         }
 
         $error500Path = ROOT_PATH . $this->baseTemplatesPath . 'error/500.php';
-        if (file_exists($error500Path)) {
+        if (file_exists($error500Path) && !$isDebug) {
             include $error500Path;
             return;
+        }
+
+        // Debug mode or no custom error page
+        $debugInfo = '';
+        if ($isDebug) {
+            $debugInfo = "
+                <div style='background:#f8d7da;border:1px solid #f5c6cb;padding:20px;margin:20px auto;max-width:900px;border-radius:8px;text-align:left;'>
+                    <h3 style='margin-top:0;color:#721c24;'>⚠️ Debug Information</h3>
+                    <p><strong>Requested URI:</strong> <code>{$requestedUri}</code></p>
+                    <p><strong>Request Method:</strong> <code>{$requestMethod}</code></p>
+                    <p><strong>Custom Message:</strong> " . ($message ? htmlspecialchars($message) : '<em>None</em>') . "</p>";
+
+            if ($exception) {
+                $debugInfo .= "
+                    <hr style='border:1px solid #f5c6cb;margin:15px 0;'>
+                    <h4 style='color:#721c24;'>Exception Details:</h4>
+                    <p><strong>Type:</strong> <code>" . get_class($exception) . "</code></p>
+                    <p><strong>Message:</strong> " . htmlspecialchars($exception->getMessage()) . "</p>
+                    <p><strong>File:</strong> <code>" . $exception->getFile() . ":" . $exception->getLine() . "</code></p>
+                    <details open>
+                        <summary style='cursor:pointer;color:#721c24;font-weight:bold;margin:10px 0;'>Stack Trace</summary>
+                        <pre style='background:#fff;padding:15px;border-radius:4px;overflow:auto;font-size:12px;line-height:1.5;border:1px solid #f5c6cb;'>" . htmlspecialchars($exception->getTraceAsString()) . "</pre>
+                    </details>";
+
+                // Show previous exceptions if chained
+                $previous = $exception->getPrevious();
+                if ($previous) {
+                    $debugInfo .= "
+                        <details>
+                            <summary style='cursor:pointer;color:#721c24;font-weight:bold;margin:10px 0;'>Previous Exception</summary>
+                            <p><strong>Message:</strong> " . htmlspecialchars($previous->getMessage()) . "</p>
+                            <p><strong>File:</strong> <code>" . $previous->getFile() . ":" . $previous->getLine() . "</code></p>
+                        </details>";
+                }
+            }
+
+            // Server environment info
+            $debugInfo .= "
+                <hr style='border:1px solid #f5c6cb;margin:15px 0;'>
+                <details>
+                    <summary style='cursor:pointer;color:#721c24;font-weight:bold;'>Server Environment</summary>
+                    <pre style='background:#fff;padding:10px;border-radius:4px;overflow:auto;font-size:12px;'>" .
+                    "PHP Version: " . phpversion() . "\n" .
+                    "Memory Usage: " . round(memory_get_usage(true) / 1024 / 1024, 2) . " MB\n" .
+                    "Peak Memory: " . round(memory_get_peak_usage(true) / 1024 / 1024, 2) . " MB" .
+                    "</pre>
+                </details>
+            </div>";
         }
 
         echo "<!DOCTYPE html>
@@ -1332,16 +1439,22 @@ class Router
             <meta charset='utf-8'>
             <meta name='viewport' content='width=device-width, initial-scale=1'>
             <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background:#f8f9fa; margin:0; padding:20px; }
+                .container { max-width:800px; margin:0 auto; }
                 h1 { color: #dc3545; }
-                p { color: #6c757d; }
+                p { color: #6c757d; line-height:1.6; }
                 a { color: #007bff; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+                code { background:#f8f9fa; padding:2px 6px; border-radius:3px; font-family:monospace; font-size:14px; }
             </style>
         </head>
         <body>
-            <h1>500 - Internal Server Error</h1>
-            <p>Something went wrong. Please try again later.</p>
-            <a href='/'>Return to Home</a>
+            <div class='container'>
+                <h1>500 - Internal Server Error</h1>
+                <p>Something went wrong. Please try again later.</p>
+                {$debugInfo}
+                <p><a href='/'>← Return to Home</a></p>
+            </div>
         </body>
         </html>";
     }
