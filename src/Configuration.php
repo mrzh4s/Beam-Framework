@@ -43,12 +43,12 @@ class Configuration {
      */
     private function initializeComponents() {
         // Load Environment first
-        if (class_exists('Environment')) {
+        if (class_exists(Environment::class)) {
             $this->environment = Environment::getInstance();
         }
-        
+
         // Initialize Session if available
-        if (class_exists('Session')) {
+        if (class_exists(Session::class)) {
             $this->session = Session::getInstance();
         }
     }

@@ -8,7 +8,7 @@ use Vireo\Framework\View\Blade;
  */
 if (!function_exists('view')) {
     function view($view, $data = []) {
-        if (class_exists('Framework\View\Blade')) {
+        if (class_exists('Vireo\Framework\View\Blade')) {
             global $currentView;
             $currentView = $view;
             try {

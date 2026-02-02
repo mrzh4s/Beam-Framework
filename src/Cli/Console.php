@@ -191,6 +191,11 @@ class Console
             $className = basename($file, '.php');
             $fullClassName = $namespace . '\\' . $className;
 
+            // Load the command file if class doesn't exist
+            if (!class_exists($fullClassName, false)) {
+                require_once $file;
+            }
+
             if (class_exists($fullClassName)) {
                 $commandName = $this->deriveCommandName($className);
 

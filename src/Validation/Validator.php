@@ -370,7 +370,15 @@ class Validator
             $className = str_replace('_', '', ucwords($ruleName, '_'));
         }
 
-        $fullClassName = "Framework\\Validation\\Rules\\{$className}";
+        $fullClassName = "Vireo\\Framework\\Validation\\Rules\\{$className}";
+
+        // Try to load the rule file if not already loaded
+        if (!class_exists($fullClassName, false)) {
+            $filePath = __DIR__ . '/Rules/' . $className . '.php';
+            if (file_exists($filePath)) {
+                require_once $filePath;
+            }
+        }
 
         if (class_exists($fullClassName)) {
             return $fullClassName;
