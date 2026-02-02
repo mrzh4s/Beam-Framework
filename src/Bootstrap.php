@@ -163,37 +163,64 @@ class Bootstrap {
     /**
      * Auto-discover and load helper files from Features directories
      *
-     * Scans all feature directories (Features/FeatureName/Helpers/) and loads any helpers found.
+     * Scans feature directories in multiple locations:
+     * - yourfeatures/shared/helpers (shared helpers across all features)
+     * - yourfeatures/{feature}/helpers (individual feature helpers)
+     * - Features/{FeatureName}/Helpers (legacy uppercase format)
+     *
      * Feature helpers are tracked as "{Feature}:{helper}" to distinguish from framework helpers.
      */
     private static function autoDiscoverFeatureHelpers() {
-        $featuresPath = ROOT_PATH . '/Features';
+        $discoveredCount = 0;
 
-        // Exit early if Features directory doesn't exist
-        if (!is_dir($featuresPath)) {
-            if (self::$debug) {
-                logger('app')->debug('Features directory not found, skipping feature helper discovery', [
-                    'path' => $featuresPath
-                ]);
-            }
-            return;
+        // 1. Load shared helpers from yourfeatures/shared/helpers
+        $sharedHelpersPath = ROOT_PATH . '/yourfeatures/shared/helpers';
+        if (is_dir($sharedHelpersPath)) {
+            $discoveredCount += self::loadHelpersFromDirectory($sharedHelpersPath, 'shared');
         }
 
+        // 2. Load feature-specific helpers from yourfeatures/{feature}/helpers
+        $yourFeaturesPath = ROOT_PATH . '/yourfeatures';
+        if (is_dir($yourFeaturesPath)) {
+            $discoveredCount += self::scanAndLoadFeatureHelpers($yourFeaturesPath, 'helpers');
+        }
+
+        // 3. Load from legacy Features/{FeatureName}/Helpers (backward compatibility)
+        $legacyFeaturesPath = ROOT_PATH . '/Features';
+        if (is_dir($legacyFeaturesPath)) {
+            $discoveredCount += self::scanAndLoadFeatureHelpers($legacyFeaturesPath, 'Helpers');
+        }
+
+        if (self::$debug && $discoveredCount > 0) {
+            logger('app')->debug('Feature helper discovery complete', [
+                'helpers_loaded' => $discoveredCount
+            ]);
+        }
+    }
+
+    /**
+     * Scan a features directory and load helpers from each feature's helper subdirectory
+     *
+     * @param string $featuresPath Path to the features directory
+     * @param string $helperSubdir Name of the helper subdirectory (e.g., 'helpers' or 'Helpers')
+     * @return int Number of helpers loaded
+     */
+    private static function scanAndLoadFeatureHelpers(string $featuresPath, string $helperSubdir): int {
         $features = @scandir($featuresPath);
 
         if ($features === false) {
-            logger('app')->warning('Failed to scan Features directory', [
+            logger('app')->warning('Failed to scan features directory', [
                 'path' => $featuresPath,
                 'error' => error_get_last()['message'] ?? 'Unknown error'
             ]);
-            return;
+            return 0;
         }
 
         $discoveredCount = 0;
 
         foreach ($features as $feature) {
-            // Skip dot directories
-            if ($feature === '.' || $feature === '..') {
+            // Skip dot directories and shared directory (handled separately)
+            if ($feature === '.' || $feature === '..' || $feature === 'shared') {
                 continue;
             }
 
@@ -204,52 +231,62 @@ class Bootstrap {
                 continue;
             }
 
-            $featureHelpersPath = $featurePath . '/Helpers';
+            $featureHelpersPath = $featurePath . '/' . $helperSubdir;
 
-            // Skip features without Helpers directory
+            // Skip features without helpers directory
             if (!is_dir($featureHelpersPath)) {
                 continue;
             }
 
-            // Load all helper files from this feature's Helpers directory
-            $helperFiles = glob($featureHelpersPath . '/*.php');
+            $discoveredCount += self::loadHelpersFromDirectory($featureHelpersPath, $feature);
+        }
 
-            if ($helperFiles === false) {
-                logger('app')->warning('Failed to glob helper files', [
-                    'feature' => $feature,
-                    'path' => $featureHelpersPath
-                ]);
+        return $discoveredCount;
+    }
+
+    /**
+     * Load all helper files from a specific directory
+     *
+     * @param string $helpersPath Path to the helpers directory
+     * @param string $featureName Name of the feature for tracking purposes
+     * @return int Number of helpers loaded
+     */
+    private static function loadHelpersFromDirectory(string $helpersPath, string $featureName): int {
+        $helperFiles = glob($helpersPath . '/*.php');
+
+        if ($helperFiles === false) {
+            logger('app')->warning('Failed to glob helper files', [
+                'feature' => $featureName,
+                'path' => $helpersPath
+            ]);
+            return 0;
+        }
+
+        $loadedCount = 0;
+
+        foreach ($helperFiles as $helperFile) {
+            $helperName = basename($helperFile, '.php');
+            // Track as "Feature:helper" to distinguish from framework helpers
+            $trackingName = $featureName . ':' . $helperName;
+
+            // Skip if already loaded (prevent duplicates)
+            if (in_array($trackingName, self::$loadedHelpers)) {
                 continue;
             }
 
-            foreach ($helperFiles as $helperFile) {
-                $helperName = basename($helperFile, '.php');
-                // Track as "Feature:helper" to distinguish from framework helpers
-                $trackingName = $feature . ':' . $helperName;
+            self::loadHelperFileDirectly($helperFile, $trackingName);
+            $loadedCount++;
 
-                // Skip if already loaded (prevent duplicates)
-                if (in_array($trackingName, self::$loadedHelpers)) {
-                    continue;
-                }
-
-                self::loadHelperFileDirectly($helperFile, $trackingName);
-                $discoveredCount++;
-
-                if (self::$debug) {
-                    logger('app')->debug('Loaded feature helper', [
-                        'feature' => $feature,
-                        'helper' => $helperName,
-                        'file' => $helperFile
-                    ]);
-                }
+            if (self::$debug) {
+                logger('app')->debug('Loaded feature helper', [
+                    'feature' => $featureName,
+                    'helper' => $helperName,
+                    'file' => $helperFile
+                ]);
             }
         }
 
-        if (self::$debug && $discoveredCount > 0) {
-            logger('app')->debug('Feature helper discovery complete', [
-                'helpers_loaded' => $discoveredCount
-            ]);
-        }
+        return $loadedCount;
     }
 
     /**
