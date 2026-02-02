@@ -491,16 +491,12 @@ class Inertia {
             session_start();
         }
 
-        // If session was closed, restart it
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            $_SESSION['errors'] = $errors;
+        // Set errors in session
+        $_SESSION['errors'] = $errors;
 
-            // Immediately write and close to ensure data is persisted
-            session_write_close();
-
-            // Restart session for any subsequent operations
-            session_start();
-        }
+        // Force session to be written immediately
+        // Don't restart - let the redirect use the same session
+        session_write_close();
     }
 
     /**
