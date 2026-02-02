@@ -98,6 +98,9 @@ class Router
     /**
      * Auto-bind repository interfaces to implementations (lazy loading)
      * Discovers interfaces in Features/{Feature}/Shared/Ports/ and registers factories for lazy loading
+     *
+     * Database adapter is automatically detected from MAIN_DB_DRIVER env var
+     * Supports: pgsql (Pg), mysql (Mysql), sqlite (Sqlite), mongodb (Mongo)
      */
     private function autoBindRepositories()
     {
@@ -106,6 +109,10 @@ class Router
         if (!is_dir($featuresPath)) {
             return;
         }
+
+        // Detect database adapter from MAIN_DB_DRIVER and map to repository prefix
+        $dbDriver = function_exists('env') ? env('MAIN_DB_DRIVER') : null;
+        $dbAdapter = $this->getAdapterFromDriver($dbDriver);
 
         // Find all RepositoryInterface files
         $interfaceFiles = glob($featuresPath . '/*/Shared/Ports/*RepositoryInterface.php');
@@ -117,13 +124,13 @@ class Router
             // Extract the repository name (e.g., User from UserRepositoryInterface)
             $repoName = str_replace('RepositoryInterface', '', $interfaceName);
 
-            // Build the implementation file path (e.g., PgUserRepository.php)
+            // Build the implementation file path using dynamic adapter (e.g., PgUserRepository.php, MysqlUserRepository.php)
             $implementationFile = str_replace(
                 ['/Ports/', 'RepositoryInterface.php'],
                 ['/Adapters/', 'Repository.php'],
                 $interfaceFile
             );
-            $implementationFile = str_replace('/Adapters/' . $repoName, '/Adapters/Pg' . $repoName, $implementationFile);
+            $implementationFile = str_replace('/Adapters/' . $repoName, '/Adapters/' . $dbAdapter . $repoName, $implementationFile);
 
             if (!file_exists($implementationFile)) {
                 continue;
@@ -134,7 +141,7 @@ class Router
             $implementationNamespace = $this->getNamespaceFromPath($implementationFile);
 
             $fullInterface = $interfaceNamespace . '\\' . $interfaceName;
-            $fullImplementation = $implementationNamespace . '\\Pg' . $repoName . 'Repository';
+            $fullImplementation = $implementationNamespace . '\\' . $dbAdapter . $repoName . 'Repository';
 
             // Register a lazy factory - files are only loaded when the interface is actually needed
             $intFile = $interfaceFile;
@@ -146,6 +153,25 @@ class Router
                 return $this->resolveClass($implClass);
             };
         }
+    }
+
+    /**
+     * Map database driver name to repository adapter prefix
+     *
+     * @param string|null $driver Database driver from MAIN_DB_DRIVER (e.g., 'pgsql', 'mysql')
+     * @return string Adapter prefix (e.g., 'Pg', 'Mysql')
+     */
+    private function getAdapterFromDriver($driver)
+    {
+        $driverMap = [
+            'pgsql' => 'Pg',
+            'mysql' => 'Mysql',
+            'sqlite' => 'Sqlite',
+            'mongodb' => 'Mongo',
+            'sqlsrv' => 'Mssql',
+        ];
+
+        return $driverMap[$driver] ?? 'Pg'; // Default to PostgreSQL if driver not recognized
     }
 
     /**
@@ -1474,6 +1500,8 @@ class Router
      *
      * Usage:
      * Router::registerBinding(UserRepositoryInterface::class, PgUserRepository::class);
+     * Router::registerBinding(UserRepositoryInterface::class, MysqlUserRepository::class);
+     * Router::registerBinding(UserRepositoryInterface::class, SqliteUserRepository::class);
      */
     public static function registerBinding($abstract, $concrete)
     {
@@ -1502,6 +1530,37 @@ class Router
     public static function registerSingleton($abstract, $concrete)
     {
         return self::getInstance()->singleton($abstract, $concrete);
+    }
+
+    // ============================================================
+    // Short Aliases for Static Methods (Convenience Methods)
+    // ============================================================
+
+    /**
+     * Bind interface to implementation (static)
+     *
+     * Shorter alias for registerBinding()
+     *
+     * Usage:
+     * Router::bind(UserRepositoryInterface::class, PgUserRepository::class);
+     * Router::bind(PaymentInterface::class, StripePayment::class);
+     */
+    public static function __callStatic($method, $args)
+    {
+        $instance = self::getInstance();
+
+        // Map static calls to instance methods
+        $methodMap = [
+            'bind' => 'bind',
+            'factory' => 'factory',
+            'singleton' => 'singleton',
+        ];
+
+        if (isset($methodMap[$method]) && method_exists($instance, $methodMap[$method])) {
+            return call_user_func_array([$instance, $methodMap[$method]], $args);
+        }
+
+        throw new \BadMethodCallException("Method {$method} does not exist on Router");
     }
 }
 
