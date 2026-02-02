@@ -326,8 +326,8 @@ class Migration {
         $migrations = [];
 
         foreach ($files as $file) {
-            // Match pattern: YYYY_MM_DD_HHMMSS_migration_name.php
-            if (preg_match('/^\d{4}_\d{2}_\d{2}_\d{6}_.*\.php$/', $file)) {
+            // Match pattern: YYYY_MM_DD_HHMMSS_migration_name.php OR 001_migration_name.php
+            if (preg_match('/^(\d{4}_\d{2}_\d{2}_\d{6}_|\d{3,}_).*\.php$/', $file)) {
                 $migrations[] = $file;
             }
         }
@@ -345,10 +345,11 @@ class Migration {
     /**
      * Get migration class name from filename
      * Example: 2024_01_29_120000_create_users_table.php -> CreateUsersTable
+     * Example: 001_create_auth_tables.php -> CreateAuthTables
      */
     private function getMigrationClassName(string $migration): string {
-        // Remove extension and timestamp prefix
-        $name = preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', $migration);
+        // Remove extension and prefix (timestamp or sequential)
+        $name = preg_replace('/^(\d{4}_\d{2}_\d{2}_\d{6}_|\d{3,}_)/', '', $migration);
         $name = str_replace('.php', '', $name);
 
         // Convert snake_case to PascalCase
