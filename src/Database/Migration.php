@@ -184,9 +184,14 @@ class Migration {
         // Load migration file
         require_once $filePath;
 
-        if (!class_exists($className)) {
-            throw new Exception("Migration class not found: {$className}");
+        // Try to get the full class name with namespace
+        $fullClassName = $this->getFullClassName($filePath, $className);
+
+        if (!class_exists($fullClassName)) {
+            throw new Exception("Migration class not found: {$fullClassName}");
         }
+
+        $className = $fullClassName;
 
         $migrationInstance = new $className();
 
@@ -348,6 +353,20 @@ class Migration {
 
         // Convert snake_case to PascalCase
         return str_replace('_', '', ucwords($name, '_'));
+    }
+
+    /**
+     * Get full class name including namespace from file
+     */
+    private function getFullClassName(string $filePath, string $className): string {
+        $contents = file_get_contents($filePath);
+
+        if ($contents !== false && preg_match('/^\s*namespace\s+([^;]+);/m', $contents, $matches)) {
+            return trim($matches[1]) . '\\' . $className;
+        }
+
+        // No namespace found, return just the class name
+        return $className;
     }
 
     /**

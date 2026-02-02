@@ -38,6 +38,11 @@ abstract class Seeder
      */
     protected function call(string $seederClass): void
     {
+        // Try to load the seeder file if class doesn't exist
+        if (!class_exists($seederClass, false)) {
+            $this->loadSeederFile($seederClass);
+        }
+
         if (!class_exists($seederClass)) {
             throw new \Exception("Seeder class not found: {$seederClass}");
         }
@@ -45,11 +50,27 @@ abstract class Seeder
         $seeder = new $seederClass();
 
         if (!($seeder instanceof Seeder)) {
-            throw new \Exception("Seeder must extend Framework\\Database\\Seeds\\Seeder");
+            throw new \Exception("Seeder must extend Vireo\\Framework\\Database\\Seeds\\Seeder");
         }
 
         $this->info("Seeding: {$seederClass}");
         $seeder->run();
+    }
+
+    /**
+     * Load seeder file from Database/Seeds directory
+     */
+    private function loadSeederFile(string $seederClass): void
+    {
+        // Get just the class name without namespace
+        $className = basename(str_replace('\\', '/', $seederClass));
+
+        $seedersPath = ROOT_PATH . '/Database/Seeds';
+        $filePath = $seedersPath . '/' . $className . '.php';
+
+        if (file_exists($filePath)) {
+            require_once $filePath;
+        }
     }
 
     /**

@@ -116,9 +116,11 @@ class SeederManager
      */
     private function loadSeederClass(string $className): void
     {
+        // Get just the class name without namespace
+        $shortClassName = basename(str_replace('\\', '/', $className));
+
         // Try to find the seeder file
-        $fileName = $className . '.php';
-        $filePath = $this->seedersPath . '/' . $fileName;
+        $filePath = $this->seedersPath . '/' . $shortClassName . '.php';
 
         if (file_exists($filePath)) {
             require_once $filePath;
