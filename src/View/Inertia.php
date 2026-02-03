@@ -479,12 +479,6 @@ class Inertia {
 
         // Set the flash message
         $_SESSION[$key] = $message;
-
-        // Write and close session to ensure data is persisted
-        session_write_close();
-
-        // Restart session for any subsequent operations
-        session_start();
     }
 
     /**

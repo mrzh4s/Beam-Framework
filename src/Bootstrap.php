@@ -434,17 +434,9 @@ class Bootstrap {
                         'authenticated' => $_SESSION['authenticated'] ?? false,
                     ],
                 ],
-                'flash' => [
-                    'success' => $_SESSION['flash_success'] ?? null,
-                    'error' => $_SESSION['flash_error'] ?? null,
-                    'warning' => $_SESSION['flash_warning'] ?? null,
-                    'info' => $_SESSION['flash_info'] ?? null,
-                ],
-                // Note: errors are handled by Inertia::getSessionProps() to avoid overwriting
+                // Note: flash messages and errors are handled by Inertia::getSessionProps()
+                // Do not override them here to avoid setting all values to null
             ]);
-
-            // Clear flash messages after sharing (errors are cleared by Inertia::clearFlashData())
-            unset($_SESSION['flash_success'], $_SESSION['flash_error'], $_SESSION['flash_warning'], $_SESSION['flash_info']);
         } catch (Exception $e) {
             logger('app')->error("Inertia data sharing failed", [
                 'error' => $e->getMessage()
