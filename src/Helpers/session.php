@@ -148,42 +148,9 @@ if (!function_exists('session_user_id')) {
 }
 
 // ============== CONVENIENCE FLASH HELPERS ==============
-
-if (!function_exists('flash_success')) {
-    /**
-     * Set success flash message
-     */
-    function flash_success($message) {
-        return session_flash('success', $message);
-    }
-}
-
-if (!function_exists('flash_error')) {
-    /**
-     * Set error flash message
-     */
-    function flash_error($message) {
-        return session_flash('error', $message);
-    }
-}
-
-if (!function_exists('flash_warning')) {
-    /**
-     * Set warning flash message
-     */
-    function flash_warning($message) {
-        return session_flash('warning', $message);
-    }
-}
-
-if (!function_exists('flash_info')) {
-    /**
-     * Set info flash message
-     */
-    function flash_info($message) {
-        return session_flash('info', $message);
-    }
-}
+// Note: These are now handled by inertia.php for Inertia.js compatibility
+// The flash_success(), flash_error(), etc. functions are defined there
+// to ensure they work properly with Inertia's flash message system
 
 if (!function_exists('get_flash_messages')) {
     /**

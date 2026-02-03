@@ -465,17 +465,26 @@ class Inertia {
     /**
      * Flash a message to the session
      * Helper method for controllers to flash messages
+     * Ensures session is written immediately before redirect
      *
      * @param string $key Flash key (success, error, warning, info)
      * @param string $message Message content
      * @return void
      */
     public static function flash($key, $message) {
-        if (!isset($_SESSION)) {
+        // Ensure session is started
+        if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
+        // Set the flash message
         $_SESSION[$key] = $message;
+
+        // Write and close session to ensure data is persisted
+        session_write_close();
+
+        // Restart session for any subsequent operations
+        session_start();
     }
 
     /**

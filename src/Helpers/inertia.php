@@ -91,3 +91,105 @@ if (!function_exists('inertia_old')) {
         return Inertia::flashOld($input);
     }
 }
+
+// ============== CONVENIENCE FLASH HELPERS ==============
+
+if (!function_exists('flash_success')) {
+    /**
+     * Flash a success message for Inertia
+     *
+     * Usage:
+     * flash_success('User created successfully!')
+     *
+     * @param string $message Success message
+     * @return void
+     */
+    function flash_success($message) {
+        return Inertia::flash('success', $message);
+    }
+}
+
+if (!function_exists('flash_error')) {
+    /**
+     * Flash an error message for Inertia
+     *
+     * Usage:
+     * flash_error('Something went wrong')
+     *
+     * @param string $message Error message
+     * @return void
+     */
+    function flash_error($message) {
+        return Inertia::flash('error', $message);
+    }
+}
+
+if (!function_exists('flash_warning')) {
+    /**
+     * Flash a warning message for Inertia
+     *
+     * Usage:
+     * flash_warning('This action cannot be undone')
+     *
+     * @param string $message Warning message
+     * @return void
+     */
+    function flash_warning($message) {
+        return Inertia::flash('warning', $message);
+    }
+}
+
+if (!function_exists('flash_info')) {
+    /**
+     * Flash an info message for Inertia
+     *
+     * Usage:
+     * flash_info('Check your email for confirmation')
+     *
+     * @param string $message Info message
+     * @return void
+     */
+    function flash_info($message) {
+        return Inertia::flash('info', $message);
+    }
+}
+
+// ============== REDIRECT WITH FLASH HELPERS ==============
+
+if (!function_exists('redirect_with_success')) {
+    /**
+     * Redirect with success flash message
+     *
+     * Usage:
+     * redirect_with_success('/dashboard', 'Login successful!')
+     *
+     * @param string $url URL to redirect to
+     * @param string $message Success message
+     * @param int $statusCode HTTP status code
+     * @return void
+     */
+    function redirect_with_success($url, $message, $statusCode = 302) {
+        flash_success($message);
+        header("Location: $url", true, $statusCode);
+        exit;
+    }
+}
+
+if (!function_exists('redirect_with_error')) {
+    /**
+     * Redirect with error flash message
+     *
+     * Usage:
+     * redirect_with_error('/login', 'Invalid credentials')
+     *
+     * @param string $url URL to redirect to
+     * @param string $message Error message
+     * @param int $statusCode HTTP status code
+     * @return void
+     */
+    function redirect_with_error($url, $message, $statusCode = 302) {
+        flash_error($message);
+        header("Location: $url", true, $statusCode);
+        exit;
+    }
+}
